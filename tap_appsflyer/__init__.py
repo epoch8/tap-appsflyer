@@ -47,10 +47,10 @@ def get_start(key):
     if "start_date" in CONFIG:
         return  utils.strptime(CONFIG["start_date"])
 
-    return datetime.datetime.now() - datetime.timedelta(days=30)
+    return datetime.datetime.now() - datetime.timedelta(days=60)
 
 
-def get_stop(start_datetime, stop_time, days=30):
+def get_stop(start_datetime, stop_time, days=60):
     return min(start_datetime + datetime.timedelta(days=days), stop_time)
 
 
@@ -289,7 +289,7 @@ def sync_installs():
     singer.write_state(STATE)
 
 def sync_organic_installs():
-    
+
     schema = load_schema("raw_data/organic_installs")
     singer.write_schema("organic_installs", schema, [
         "event_time",
