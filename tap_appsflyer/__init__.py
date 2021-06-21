@@ -35,6 +35,8 @@ ENDPOINTS = {
     "in_app_events": "/export/{app_id}/in_app_events_report/v5"
 }
 
+MAXIMUM_ROWS_LIMIT = 1000000
+
 
 def af_datetime_str_to_datetime(s):
     return datetime.datetime.strptime(s.strip(), "%Y-%m-%d %H:%M:%S")
@@ -67,6 +69,17 @@ def get_url(endpoint, **kwargs):
     else:
         return get_base_url() + ENDPOINTS[endpoint].format(**kwargs)
 
+def get_maximum_rows():
+    if "maximum_rows" in CONFIG:
+        if CONFIG["maximum_rows"] > MAXIMUM_ROWS_LIMIT:
+            raise ValueError(
+                "Maximum rows parameter can\'t be greater than {}.".format(MAXIMUM_ROWS_LIMIT),
+                " Currently set {}".format(CONFIG["maximum_rows"])
+            )
+
+        return CONFIG["maximum_rows"]
+    else:
+        return 200000
 
 def xform_datetime_field(record, field_name):
     record[field_name] = af_datetime_str_to_datetime(record[field_name]).isoformat()
@@ -161,6 +174,14 @@ class RequestToCsvAdapter:
     def __next__(self):
         return next(self.request_data_iter).decode("utf-8")
 
+
+
+def populate_params(params: dict, from_datetime, to_datetime):
+    params["from"] = from_datetime.strftime("%Y-%m-%d %H:%M")
+    params["to"] = to_datetime.strftime("%Y-%m-%d %H:%M")
+    params["api_token"] = CONFIG["api_token"]
+    params["maximum_rows"] = get_maximum_rows()
+    return params
 
 def sync_installs():
 
@@ -264,9 +285,7 @@ def sync_installs():
         return
 
     params = dict()
-    params["from"] = from_datetime.strftime("%Y-%m-%d %H:%M")
-    params["to"] = to_datetime.strftime("%Y-%m-%d %H:%M")
-    params["api_token"] = CONFIG["api_token"]
+    params = populate_params(params, from_datetime, to_datetime)
 
     url = get_url("installs", app_id=CONFIG["app_id"])
     request_data = request(url, params)
@@ -393,9 +412,7 @@ def sync_organic_installs():
         return
 
     params = dict()
-    params["from"] = from_datetime.strftime("%Y-%m-%d %H:%M")
-    params["to"] = to_datetime.strftime("%Y-%m-%d %H:%M")
-    params["api_token"] = CONFIG["api_token"]
+    params = populate_params(params, from_datetime, to_datetime)
 
     url = get_url("organic_installs", app_id=CONFIG["app_id"])
     request_data = request(url, params)
@@ -519,9 +536,7 @@ def sync_in_app_events():
     while from_datetime < stop_time:
         LOGGER.info("Syncing data from %s to %s", from_datetime, to_datetime)
         params = dict()
-        params["from"] = from_datetime.strftime("%Y-%m-%d %H:%M")
-        params["to"] = to_datetime.strftime("%Y-%m-%d %H:%M")
-        params["api_token"] = CONFIG["api_token"]
+        params = populate_params(params, from_datetime, to_datetime)
 
         url = get_url("in_app_events", app_id=CONFIG["app_id"])
         request_data = request(url, params)
